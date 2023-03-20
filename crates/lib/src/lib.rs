@@ -44,6 +44,7 @@ pub struct RustcVersion {
     Clone, Debug, Eq, Hash, PartialEq, PartialOrd, Ord, serde::Deserialize, serde::Serialize,
 )]
 pub struct Ice {
+    pub flags: Option<Vec<String>>,
     pub message: Option<String>,
     pub query_stack: Option<Vec<String>>,
     pub version: Option<RustcVersion>,

@@ -8,6 +8,10 @@ use regex::Regex;
 
 use icedb::{Ice, IceWithIssues, Issue, RustcVersion};
 
+fn flags_regex() -> Regex {
+    Regex::new(r"(?m)^note: compiler flags: (?P<flags>.+)$").unwrap()
+}
+
 fn message_regex() -> Regex {
     Regex::new(r"(?m)^error: internal compiler error: (?P<file>[^:]+):\d+:\d+: (?P<msg>.+)$")
         .unwrap()
@@ -26,6 +30,7 @@ fn version_regex() -> Regex {
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     let issues = String::from_utf8(fs::read("./db/issues.jsonl")?)?;
+    let flags_rx = flags_regex();
     let message_rx = message_regex();
     let stack_rx = query_stack_regex();
     let version_rx = version_regex();
@@ -34,6 +39,15 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         let issue: Issue = serde_json::from_str(issue_str)?;
         debug_assert!(issue.labels.iter().any(|l| l.name == "I-ICE"));
         let body_string = issue.body.unwrap_or_default();
+        let flags = flags_rx.captures(&body_string).map(|m| {
+            m.name("flags")
+                .unwrap()
+                .as_str()
+                .to_owned()
+                .split(' ')
+                .map(|s| s.to_string())
+                .collect()
+        });
         let message = message_rx
             .captures(&body_string)
             .map(|m| m.name("msg").unwrap().as_str().to_owned());
@@ -54,6 +68,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             llvm_version: m.name("llvm_version").unwrap().as_str().to_owned(),
         });
         let ice = Ice {
+            flags,
             message,
             query_stack,
             version,
@@ -84,6 +99,12 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
 #[cfg(test)]
 mod tests {
+    #[test]
+    fn flags_regex() {
+        let rx = super::flags_regex();
+        assert!(rx.is_match("note: compiler flags: -C embed-bitcode=no -C split-debuginfo=unpacked -C debuginfo=2 -C incremental=[REDACTED]"))
+    }
+
     #[test]
     fn message_regex() {
         let rx = super::message_regex();
