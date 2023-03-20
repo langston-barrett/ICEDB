@@ -1,12 +1,8 @@
-use std::{
-    collections::{HashMap, HashSet},
-    fs,
-    io::Write,
-};
+use std::{collections::HashSet, fs, io::Write};
 
 use regex::Regex;
 
-use icedb::{Ice, IceWithIssues, Issue, RustcVersion};
+use icedb::{Ice, Issue, RustcVersion};
 
 fn backtrace_regex() -> Regex {
     Regex::new(r"(?m)^stack backtrace:(?P<backtrace>(\n +\d+:.+)+)$").unwrap()
@@ -39,7 +35,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let message_rx = message_regex();
     let stack_rx = query_stack_regex();
     let version_rx = version_regex();
-    let mut ices = HashMap::new();
+    let mut ices = HashSet::new();
     for issue_str in issues.lines() {
         let issue: Issue = serde_json::from_str(issue_str)?;
         debug_assert!(issue.labels.iter().any(|l| l.name == "I-ICE"));
@@ -85,27 +81,26 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             backtrace,
             flags,
             message,
+            issue: issue.number,
             query_stack,
             version,
         };
-        if ice.message.is_none() && ice.query_stack.is_none() && ice.version.is_none() {
+        if ice.backtrace.is_none()
+            && ice.flags.is_none()
+            && ice.message.is_none()
+            && ice.query_stack.is_none()
+            && ice.version.is_none()
+        {
             continue;
         }
-        ices.entry(ice)
-            .or_insert_with(HashSet::new)
-            .insert(issue.number);
+        ices.insert(ice);
     }
 
-    let mut sorted_ice_issues = Vec::from_iter(ices.into_iter().map(|(ice, issue_set)| {
-        let mut issue_vec = Vec::from_iter(issue_set.into_iter());
-        issue_vec.sort();
-        (ice, issue_vec)
-    }));
-    sorted_ice_issues.sort();
+    let mut sorted_ices = Vec::from_iter(ices.into_iter());
+    sorted_ices.sort_by(|i, j| i.issue.cmp(&j.issue));
     let mut ice_issues_file = fs::File::create("./db/ices.jsonl")?;
-    for (ice, issues) in sorted_ice_issues {
-        ice_issues_file
-            .write_all(serde_json::to_string(&IceWithIssues { ice, issues })?.as_bytes())?;
+    for ice in sorted_ices {
+        ice_issues_file.write_all(serde_json::to_string(&ice)?.as_bytes())?;
         ice_issues_file.write_all(&[u8::try_from('\n').unwrap()])?;
     }
 

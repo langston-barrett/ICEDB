@@ -46,15 +46,8 @@ pub struct RustcVersion {
 pub struct Ice {
     pub backtrace: Option<Vec<String>>,
     pub flags: Option<Vec<String>>,
+    pub issue: usize,
     pub message: Option<String>,
     pub query_stack: Option<Vec<String>>,
     pub version: Option<RustcVersion>,
-}
-
-#[derive(
-    Clone, Debug, Eq, Hash, PartialEq, PartialOrd, Ord, serde::Deserialize, serde::Serialize,
-)]
-pub struct IceWithIssues {
-    pub ice: Ice,
-    pub issues: Vec<usize>,
 }
