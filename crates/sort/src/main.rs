@@ -12,9 +12,13 @@ fn flags_regex() -> Regex {
     Regex::new(r"(?m)^note: compiler flags: (?P<flags>.+)$").unwrap()
 }
 
-fn message_regex() -> Regex {
+fn message_regex1() -> Regex {
     Regex::new(r"(?m)^error: internal compiler error: (?P<file>[^:]+):\d+:\d+: (?P<msg>.+)$")
         .unwrap()
+}
+
+fn message_regex2() -> Regex {
+    Regex::new(r"(?m)^thread 'rustc' panicked at '(?P<msg>[^']+)', .+$").unwrap()
 }
 
 fn query_stack_regex() -> Regex {
@@ -32,7 +36,8 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let issues = String::from_utf8(fs::read("./db/issues.jsonl")?)?;
     let backtrace_rx = backtrace_regex();
     let flags_rx = flags_regex();
-    let message_rx = message_regex();
+    let message_rx1 = message_regex1();
+    let message_rx2 = message_regex2();
     let stack_rx = query_stack_regex();
     let version_rx = version_regex();
     let mut ices = HashSet::new();
@@ -58,9 +63,14 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                 .map(|s| s.to_string())
                 .collect()
         });
-        let message = message_rx
+        let mut message = message_rx1
             .captures(&body_string)
             .map(|m| m.name("msg").unwrap().as_str().to_owned());
+        if message.is_none() {
+            message = message_rx2
+                .captures(&body_string)
+                .map(|m| m.name("msg").unwrap().as_str().to_owned());
+        }
         let query_stack = stack_rx.captures(&body_string).map(|m| {
             m.name("stack")
                 .unwrap()
@@ -139,9 +149,15 @@ mod tests {
     }
 
     #[test]
-    fn message_regex() {
-        let rx = super::message_regex();
-        assert!(rx.is_match("error: internal compiler error: compiler/rustc_infer/src/infer/region_constraints/mod.rs:568:17: cannot relate bound region: ReLateBound(DebruijnIndex(0), BoundRegion { var: 1, kind: BrNamed(DefId(0:8 ~ prefix[b2cc]::longest_common_prefix::'_#1), '_) }) <= '_#29r"))
+    fn message_regex1() {
+        let rx = super::message_regex1();
+        assert!(rx.is_match("error: internal compiler error: compiler/rustc_infer/src/infer/region_constraints/mod.rs:568:17: cannot relate bound region: ReLateBound(DebruijnIndex(0), BoundRegion { var: 1, kind: BrNamed(DefId(0:8 ~ prefix[b2cc]::longest_common_prefix::'_#1), '_) }) <= '_#29r"));
+    }
+
+    #[test]
+    fn message_regex2() {
+        let rx = super::message_regex2();
+        assert!(rx.is_match(r#"thread 'rustc' panicked at 'no resolution for "Path" MacroNS DefId(0:2566 ~ skia_safe[0ba6]::core::path_types)', src/librustdoc/passes/collect_intra_doc_links.rs:393:32"#));
     }
 
     #[test]
