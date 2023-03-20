@@ -46,8 +46,9 @@ pub struct RustcVersion {
 pub struct Ice {
     pub backtrace: Option<Vec<String>>,
     pub flags: Option<Vec<String>>,
+    pub ice_message: Option<String>,
     pub issue: usize,
-    pub message: Option<String>,
+    pub panic_message: Option<String>,
     pub query_stack: Option<Vec<String>>,
     pub version: Option<RustcVersion>,
 }
