@@ -1,49 +1,12 @@
-use std::{collections::HashSet, fs, io::Write};
+use std::{
+    collections::{HashMap, HashSet},
+    fs,
+    io::Write,
+};
 
 use regex::Regex;
 
-#[allow(dead_code)]
-#[derive(Debug, serde::Deserialize)]
-struct Label {
-    id: usize,
-    name: String,
-    description: Option<String>,
-}
-
-#[derive(Debug, PartialEq, Eq, serde::Deserialize)]
-#[serde(rename_all = "lowercase")]
-enum IssueState {
-    Open,
-    Closed,
-}
-
-#[allow(dead_code)]
-#[derive(Debug, serde::Deserialize)]
-struct Issue {
-    id: usize,
-    number: usize,
-    state: IssueState,
-    title: String,
-    body: Option<String>,
-    labels: Vec<Label>,
-}
-
-// Information returned by rustc --version --verbose
-#[derive(Debug, Eq, Hash, PartialEq, PartialOrd, Ord, serde::Serialize)]
-struct RustcVersion {
-    commit_hash: String,
-    commit_date: String,
-    host: String,
-    release: String,
-    llvm_version: String,
-}
-
-#[derive(Debug, Eq, Hash, PartialEq, PartialOrd, Ord, serde::Serialize)]
-struct Ice {
-    message: Option<String>,
-    query_stack: Option<Vec<String>>,
-    version: Option<RustcVersion>,
-}
+use icedb::{Ice, IceWithIssues, Issue, RustcVersion};
 
 fn message_regex() -> Regex {
     Regex::new(r"(?m)^error: internal compiler error: (?P<file>[^:]+):\d+:\d+: (?P<msg>.+)$")
@@ -66,7 +29,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let message_rx = message_regex();
     let stack_rx = query_stack_regex();
     let version_rx = version_regex();
-    let mut ices = HashSet::new();
+    let mut ices = HashMap::new();
     for issue_str in issues.lines() {
         let issue: Issue = serde_json::from_str(issue_str)?;
         debug_assert!(issue.labels.iter().any(|l| l.name == "I-ICE"));
@@ -95,15 +58,25 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             query_stack,
             version,
         };
-        ices.insert(ice);
+        if ice.message.is_none() && ice.query_stack.is_none() && ice.version.is_none() {
+            continue;
+        }
+        ices.entry(ice)
+            .or_insert_with(HashSet::new)
+            .insert(issue.number);
     }
 
-    let mut sorted_ices = Vec::from_iter(ices.iter());
-    sorted_ices.sort();
-    let mut ice_file = fs::File::create("./db/ices.jsonl")?;
-    for ice in sorted_ices {
-        ice_file.write_all(serde_json::to_string(&ice)?.as_bytes())?;
-        ice_file.write_all(&[u8::try_from('\n').unwrap()])?;
+    let mut sorted_ice_issues = Vec::from_iter(ices.into_iter().map(|(ice, issue_set)| {
+        let mut issue_vec = Vec::from_iter(issue_set.into_iter());
+        issue_vec.sort();
+        (ice, issue_vec)
+    }));
+    sorted_ice_issues.sort();
+    let mut ice_issues_file = fs::File::create("./db/ices.jsonl")?;
+    for (ice, issues) in sorted_ice_issues {
+        ice_issues_file
+            .write_all(serde_json::to_string(&IceWithIssues { ice, issues })?.as_bytes())?;
+        ice_issues_file.write_all(&[u8::try_from('\n').unwrap()])?;
     }
 
     Ok(())

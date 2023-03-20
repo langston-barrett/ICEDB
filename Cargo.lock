@@ -298,6 +298,21 @@ dependencies = [
 ]
 
 [[package]]
+name = "icedb"
+version = "0.0.0"
+dependencies = [
+ "serde",
+]
+
+[[package]]
+name = "icedb-dup"
+version = "0.0.0"
+dependencies = [
+ "icedb",
+ "serde_json",
+]
+
+[[package]]
 name = "icedb-issues"
 version = "0.0.0"
 dependencies = [
@@ -312,6 +327,7 @@ dependencies = [
 name = "icedb-sort"
 version = "0.0.0"
 dependencies = [
+ "icedb",
  "regex",
  "serde",
  "serde_json",

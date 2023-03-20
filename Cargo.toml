@@ -1,5 +1,7 @@
 [workspace] 
 members = [
+    "crates/dup",
     "crates/issues",
+    "crates/lib",
     "crates/sort",
 ]
