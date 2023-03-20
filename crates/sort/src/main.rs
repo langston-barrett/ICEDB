@@ -5,7 +5,7 @@ use regex::Regex;
 use icedb::{Ice, Issue, RustcVersion};
 
 fn backtrace_regex() -> Regex {
-    Regex::new(r"(?m)^stack backtrace:(?P<backtrace>(\n +\d+:.+)+)$").unwrap()
+    Regex::new(r"(?m)^stack backtrace:(?P<backtrace>(\n +\d+:.+$|\n +at .+$)+)$").unwrap()
 }
 
 fn flags_regex() -> Regex {
@@ -115,6 +115,20 @@ mod tests {
         assert!(rx.is_match("stack backtrace:
    0:        0x10373bd1c - <std::sys_common::backtrace::_print::DisplayBacktrace as core::fmt::Display>::fmt::h5c2d00a9fd17401b
   80:        0x1a3be9240 - __pthread_deallocate"
+        ));
+        assert!(rx.is_match("stack backtrace:
+   0:     0x7f1304f6ec90 - std::backtrace_rs::backtrace::libunwind::trace::h4c56f7c1d2b54c49
+                               at /rustc/98ad6a5519651af36e246c0335c964dd52c554ba/library/std/src/../../backtrace/src/backtrace/mod.rs:66:5
+   1:     0x7f1304f6ec90 - std::backtrace_rs::backtrace::trace_unsynchronized::h43647f7dfa7709b7
+                               at /rustc/98ad6a5519651af36e246c0335c964dd52c554ba/library/std/src/../../backtrace/src/backtrace/mod.rs:66:5
+   2:     0x7f1304f6ec90 - std::sys_common::backtrace::_print_fmt::hb05bf7e901883977
+                               at /rustc/98ad6a5519651af36e246c0335c964dd52c554ba/library/std/src/sys_common/backtrace.rs:66:5
+   3:     0x7f1304f6ec90 - <std::sys_common::backtrace::_print::DisplayBacktrace as core::fmt::Display>::fmt::hd3f800102e692f91
+                               at /rustc/98ad6a5519651af36e246c0335c964dd52c554ba/library/std/src/sys_common/backtrace.rs:45:22
+   4:     0x7f1304fc99ee - core::fmt::write::h7e5f4e1d134bd366
+                               at /rustc/98ad6a5519651af36e246c0335c964dd52c554ba/library/core/src/fmt/mod.rs:1202:17
+   5:     0x7f1304f5f7a5 - std::io::Write::write_fmt::h51d5f9bde508a4b0
+                               at /rustc/98ad6a5519651af36e246c0335c964dd52c554ba/library/std/src/io/mod.rs:1679:15"
         ));
     }
 
