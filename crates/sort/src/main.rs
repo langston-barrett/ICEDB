@@ -172,7 +172,14 @@ mod tests {
 #1 [typeck_item_bodies] type-checking all item bodies
 #2 [analysis] running analysis passes on this crate
 end of query stack"
-        ))
+        ));
+        assert!(rx.is_match(
+            "query stack during panic:
+#0 [typeck] type-checking `b`
+#1 [typeck_item_bodies] type-checking all item bodies
+#2 [analysis] running analysis passes on this crate
+end of query stack"
+        ));
     }
 
     #[test]

@@ -32,7 +32,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         .map(|i| (i.number, i))
         .collect::<HashMap<_, _>>();
     for ice in &ices {
-        if ice.message.is_none() || ice.query_stack.is_none() {
+        if ice.panic_message.is_none() || ice.query_stack.is_none() {
             continue;
         }
     }
