@@ -28,10 +28,21 @@ struct Issue {
     labels: Vec<Label>,
 }
 
+// Information returned by rustc --version --verbose
+#[derive(Debug, Eq, Hash, PartialEq, PartialOrd, Ord, serde::Serialize)]
+struct RustcVersion {
+    commit_hash: String,
+    commit_date: String,
+    host: String,
+    release: String,
+    llvm_version: String,
+}
+
 #[derive(Debug, Eq, Hash, PartialEq, PartialOrd, Ord, serde::Serialize)]
 struct Ice {
     message: Option<String>,
     query_stack: Option<Vec<String>>,
+    version: Option<RustcVersion>,
 }
 
 fn message_regex() -> Regex {
@@ -43,10 +54,18 @@ fn query_stack_regex() -> Regex {
     Regex::new(r"(?ms)^query stack during panic:\n(?P<stack>.+)end of query stack$").unwrap()
 }
 
+fn version_regex() -> Regex {
+    Regex::new(
+        r"(?m)^binary: .+\ncommit-hash: (?P<commit_hash>.+)\ncommit-date: (?P<commit_date>.+)\nhost: (?P<host>.+)\nrelease: (?P<release>.+)\nLLVM version: (?P<llvm_version>.+)$",
+    )
+    .unwrap()
+}
+
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     let issues = String::from_utf8(fs::read("./db/issues.jsonl")?)?;
     let message_rx = message_regex();
     let stack_rx = query_stack_regex();
+    let version_rx = version_regex();
     let mut ices = HashSet::new();
     for issue_str in issues.lines() {
         let issue: Issue = serde_json::from_str(issue_str)?;
@@ -64,9 +83,17 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                 .map(|s| s.to_string())
                 .collect()
         });
+        let version = version_rx.captures(&body_string).map(|m| RustcVersion {
+            commit_hash: m.name("commit_hash").unwrap().as_str().to_owned(),
+            commit_date: m.name("commit_date").unwrap().as_str().to_owned(),
+            host: m.name("host").unwrap().as_str().to_owned(),
+            release: m.name("release").unwrap().as_str().to_owned(),
+            llvm_version: m.name("llvm_version").unwrap().as_str().to_owned(),
+        });
         let ice = Ice {
             message,
             query_stack,
+            version,
         };
         ices.insert(ice);
     }
@@ -102,6 +129,20 @@ mod tests {
 #1 [typeck_item_bodies] type-checking all item bodies
 #2 [analysis] running analysis passes on this crate
 end of query stack"
+        ))
+    }
+
+    #[test]
+    fn version_regex() {
+        let rx = super::version_regex();
+        assert!(rx.is_match(
+            "rustc 1.68.0 (2c8cc3432 2023-03-06) (built from a source tarball)
+binary: rustc
+commit-hash: 2c8cc343237b8f7d5a3c3703e3a87f2eb2c54a74
+commit-date: 2023-03-06
+host: aarch64-apple-darwin
+release: 1.68.0
+LLVM version: 15.0.6"
         ))
     }
 }
