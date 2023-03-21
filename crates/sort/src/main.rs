@@ -27,7 +27,7 @@ fn query_stack_regex() -> Regex {
 
 fn version_regex() -> Regex {
     Regex::new(
-        r"(?m)^binary: .+\r?\ncommit-hash: (?P<commit_hash>.+)\r?\ncommit-date: (?P<commit_date>.+)\nhost: (?P<host>.+)\nrelease: (?P<release>.+)\nLLVM version: (?P<llvm_version>.+)$",
+        r"(?m)^binary: .+\r?\ncommit-hash: (?P<commit_hash>.+)\r?\ncommit-date: (?P<commit_date>.+)\r?\nhost: (?P<host>.+)\r?\nrelease: (?P<release>.+)\r?\nLLVM version: (?P<llvm_version>.+)$",
     )
     .unwrap()
 }
@@ -52,6 +52,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                 .to_owned()
                 .split('\n')
                 .map(|s| s.trim().to_string())
+                .filter(|s| !s.is_empty())
                 .collect()
         });
         let flags = flags_rx.captures(&body_string).map(|m| {
@@ -60,7 +61,8 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                 .as_str()
                 .to_owned()
                 .split(' ')
-                .map(|s| s.to_string())
+                .map(|s| s.trim().to_string())
+                .filter(|s| !s.is_empty())
                 .collect()
         });
         let ice_message = ice_message_rx
@@ -75,7 +77,8 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                 .as_str()
                 .to_owned()
                 .lines()
-                .map(|s| s.to_string())
+                .map(|s| s.trim().to_string())
+                .filter(|s| !s.is_empty())
                 .collect()
         });
         let version = version_rx.captures(&body_string).map(|m| RustcVersion {
