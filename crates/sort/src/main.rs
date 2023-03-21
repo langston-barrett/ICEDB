@@ -5,7 +5,7 @@ use regex::Regex;
 use icedb::{Ice, Issue, RustcVersion};
 
 fn backtrace_regex() -> Regex {
-    Regex::new(r"(?m)^stack backtrace:(?P<backtrace>(\n +\d+:.+$|\n +at .+$)+)$").unwrap()
+    Regex::new(r"(?m)^stack backtrace:(?P<backtrace>(\r?\n +\d+:.+$|\r?\n +at .+$)+)$").unwrap()
 }
 
 fn flags_regex() -> Regex {
@@ -22,12 +22,12 @@ fn panic_message_regex() -> Regex {
 }
 
 fn query_stack_regex() -> Regex {
-    Regex::new(r"(?ms)^query stack during panic:\n(?P<stack>.+)end of query stack$").unwrap()
+    Regex::new(r"(?ms)^query stack during panic:\r?\n(?P<stack>.+)end of query stack$").unwrap()
 }
 
 fn version_regex() -> Regex {
     Regex::new(
-        r"(?m)^binary: .+\ncommit-hash: (?P<commit_hash>.+)\ncommit-date: (?P<commit_date>.+)\nhost: (?P<host>.+)\nrelease: (?P<release>.+)\nLLVM version: (?P<llvm_version>.+)$",
+        r"(?m)^binary: .+\r?\ncommit-hash: (?P<commit_hash>.+)\r?\ncommit-date: (?P<commit_date>.+)\nhost: (?P<host>.+)\nrelease: (?P<release>.+)\nLLVM version: (?P<llvm_version>.+)$",
     )
     .unwrap()
 }
@@ -119,6 +119,24 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
 #[cfg(test)]
 mod tests {
+    use icedb::Issue;
+
+    fn get_issue(number: usize) -> Issue {
+        // TODO: read per line
+        let issue_file = std::fs::read_to_string(format!(
+            "{}/../.././db/issues.jsonl",
+            env!("CARGO_MANIFEST_DIR")
+        ))
+        .unwrap();
+        for ice_str in issue_file.lines() {
+            let issue: Issue = serde_json::from_str(ice_str).unwrap();
+            if issue.number == number {
+                return issue;
+            }
+        }
+        unreachable!()
+    }
+
     #[test]
     fn backtrace_regex() {
         let rx = super::backtrace_regex();
@@ -140,6 +158,8 @@ mod tests {
    5:     0x7f1304f5f7a5 - std::io::Write::write_fmt::h51d5f9bde508a4b0
                                at /rustc/98ad6a5519651af36e246c0335c964dd52c554ba/library/std/src/io/mod.rs:1679:15"
         ));
+        eprintln!("{}", get_issue(107990).body.unwrap());
+        assert!(rx.is_match(&get_issue(107990).body.unwrap()))
     }
 
     #[test]
@@ -165,7 +185,7 @@ mod tests {
         let rx = super::query_stack_regex();
         assert!(rx.is_match(
             "query stack during panic:
-#0 [typeck] type-checking `longest_common_prefix`
+#0 [typeck] type-checking `longest_commggon_prefix`
 #1 [typeck_item_bodies] type-checking all item bodies
 #2 [analysis] running analysis passes on this crate
 #0 [typeck] type-checking `longest_common_prefix`

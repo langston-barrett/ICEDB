@@ -5,7 +5,7 @@ use std::{
 
 use icedb::{Ice, Issue};
 
-fn read_ices_with_issues() -> Result<HashSet<Ice>, Box<dyn std::error::Error>> {
+fn read_ices() -> Result<HashSet<Ice>, Box<dyn std::error::Error>> {
     let ice_file = fs::read_to_string("./db/ices.jsonl")?;
     let mut ices = HashSet::new();
     for ice_str in ice_file.lines() {
@@ -25,7 +25,7 @@ fn read_issues() -> Result<HashSet<Issue>, Box<dyn std::error::Error>> {
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     eprintln!("[WARN] This program is not actually great at determining duplicates.");
-    let ices = read_ices_with_issues()?;
+    let ices = read_ices()?;
     let issues = read_issues()?;
     let _issue_map = issues
         .into_iter()
